@@ -50,27 +50,37 @@ namespace user_and_identity_management.Controllers
                 UserName = registerUser.UserName
             };
 
-            var result = await _userManager.CreateAsync(user, registerUser.Password);
-            if (result.Succeeded)
+            if (await _roleManager.RoleExistsAsync(role))
             {
+
+                var result = await _userManager.CreateAsync(user, registerUser.Password);
+                if (!result.Succeeded)
+                {
+                    return StatusCode(StatusCodes.Status500InternalServerError,
+                        new Response
+                        {
+                            Status = "Error",
+                            Message = "User creation failed! Please check user details and try again."
+                        });
+                }
+
+                await _userManager.AddToRoleAsync(user, role);
                 return StatusCode(StatusCodes.Status201Created,
-                    new Response
-                    {
-                        Status = "Success",
-                        Message = "User created successfully"
-                    });
+                        new Response
+                        {
+                            Status = "Success",
+                            Message = "User Created Successfully"
+                        });
             }
             else
             {
                 return StatusCode(StatusCodes.Status500InternalServerError,
-                    new Response
-                    {
-                        Status = "Error",
-                        Message = "User creation failed"
-                    });
+                        new Response
+                        {
+                            Status = "Error",
+                            Message = "This Role does not exist"
+                        });
             }
-
-
         }
 
     }
