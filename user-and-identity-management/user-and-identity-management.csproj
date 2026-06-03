@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>user_and_identity_management</RootNamespace>
+    <UserSecretsId>adf2e513-e19d-4f94-b730-2944217e93ca</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,6 +21,10 @@
 
   <ItemGroup>
     <Folder Include="Models\Authentication\Login\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\User.Management.Service\User.Management.Service.csproj" />
   </ItemGroup>
 
 </Project>

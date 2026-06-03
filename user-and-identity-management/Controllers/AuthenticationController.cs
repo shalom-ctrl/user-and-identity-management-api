@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using User.Management.Service.Models;
+using User.Management.Service.Services;
 using user_and_identity_management.Models;
 using user_and_identity_management.Models.Authentication.SignUp;
 
@@ -13,14 +15,14 @@ namespace user_and_identity_management.Controllers
     {
         private readonly UserManager<IdentityUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
-        private readonly IConfiguration _configuration;
+        private readonly IEmailService _emailService;
 
         public AuthenticationController(UserManager<IdentityUser> userManager, 
-            RoleManager<IdentityRole> roleManager, IConfiguration configuration)
+            RoleManager<IdentityRole> roleManager, IEmailService emailService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
-            _configuration = configuration;
+            _emailService = emailService;
         }
 
 
@@ -81,6 +83,22 @@ namespace user_and_identity_management.Controllers
                             Message = "This Role does not exist"
                         });
             }
+        }
+
+        [HttpGet]
+        public IActionResult TestEmail()
+        {
+            var message = 
+                new Message(new string[]
+                { "sachikasim.2203252@stu.cu.edu.ng" }, "Test Email", "<h1>Test Email</h1>");
+            _emailService.SendEmail(message);
+
+            return StatusCode(StatusCodes.Status200OK,
+                        new Response
+                        {
+                            Status = "Success",
+                            Message = "Email Sent Successfully"
+                        });
         }
 
     }
