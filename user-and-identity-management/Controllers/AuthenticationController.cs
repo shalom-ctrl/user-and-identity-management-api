@@ -67,11 +67,18 @@ namespace user_and_identity_management.Controllers
                 }
 
                 await _userManager.AddToRoleAsync(user, role);
+
+                var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                var confirmationLink = Url.Action(nameof(ConfirmEmail), "Authentication", new { token, email = user.Email }, Request.Scheme);
+                var linkText = $"Please confirm your email by <a href='{confirmationLink}'>clicking here</a>.";
+                var message = new Message(new string[] { user.Email }, "Email Confirmation", linkText);
+                _emailService.SendEmail(message);
+
                 return StatusCode(StatusCodes.Status201Created,
                         new Response
                         {
                             Status = "Success",
-                            Message = "User Created Successfully"
+                            Message = "User Created and Email Confirmation Sent to " + user.Email + " successfully"
                         });
             }
             else
@@ -85,21 +92,30 @@ namespace user_and_identity_management.Controllers
             }
         }
 
-        [HttpGet]
-        public IActionResult TestEmail()
+        [HttpGet("confirm-email")]
+        public async Task<IActionResult> ConfirmEmail(string token, string email)
         {
-            var message = 
-                new Message(new string[]
-                { "sachikasim.2203252@stu.cu.edu.ng" }, "Test Email", "<h1>Test Email</h1>");
-            _emailService.SendEmail(message);
-
-            return StatusCode(StatusCodes.Status200OK,
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user != null)
+            {
+                var result = await _userManager.ConfirmEmailAsync(user, token);
+                if (result.Succeeded)
+                {
+                    return StatusCode(StatusCodes.Status200OK,
                         new Response
                         {
                             Status = "Success",
-                            Message = "Email Sent Successfully"
+                            Message = "Email confirmed successfully!"
+                        });
+                }
+            }
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                        new Response
+                        {
+                            Status = "Error",
+                            Message = "Email confirmation failed!"
                         });
         }
 
-    }
+        }
 }
