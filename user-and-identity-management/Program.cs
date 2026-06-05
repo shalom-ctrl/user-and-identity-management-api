@@ -7,7 +7,8 @@ using User.Management.Service.Service; // Namespace for EmailService
 using User.Management.Service.Services;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using Microsoft.OpenApi.Models; // Namespace for IEmailService
+using Microsoft.OpenApi.Models;
+using User.Management.Service.Interface; // Namespace for IEmailService
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -96,6 +97,7 @@ var emailConfig = builder.Configuration
 
 builder.Services.AddSingleton(emailConfig);
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IUserManagement, UserManagement>();
 
 
 var app = builder.Build();

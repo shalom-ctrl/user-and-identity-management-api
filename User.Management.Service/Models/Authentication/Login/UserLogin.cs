@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace user_and_identity_management.Models.Authentication.Login
+namespace User.Management.Service.Models.Authentication.Login
 {
     public class UserLogin
     {
