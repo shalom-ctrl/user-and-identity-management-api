@@ -1,4 +1,4 @@
-﻿namespace user_and_identity_management.Models.Authentication
+﻿namespace user_and_identity_management.Models.Authentication.Login
 {
     public class VerifyOTP
     {

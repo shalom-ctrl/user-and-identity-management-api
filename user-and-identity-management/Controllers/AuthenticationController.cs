@@ -3,13 +3,13 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using User.Management.Service.Models;
 using User.Management.Service.Services;
 using user_and_identity_management.Models;
-using user_and_identity_management.Models.Authentication;
 using user_and_identity_management.Models.Authentication.Login;
 using user_and_identity_management.Models.Authentication.SignUp;
 
@@ -294,6 +294,86 @@ namespace user_and_identity_management.Controllers
 
             }
             return Unauthorized();
+        }
+
+        [HttpPost("Forgot-Password")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ForgotPassword([Required] string email)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+            if(user != null)
+            {
+                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var ForgotPasswordlink = Url.Action(nameof(ResetPassword), "Authentication", new { token, email = user.Email }, Request.Scheme);
+                var ResetPasswordlink = $"Please reset your password by <a href='{ForgotPasswordlink}'>clicking here</a>.";
+                var message = new Message(new string[] { user.Email }, "Reset Password Email", ResetPasswordlink);
+                _emailService.SendEmail(message);
+
+
+                return StatusCode(StatusCodes.Status200OK,
+                        new Response
+                        {
+                            Status = "Success",
+                            Message = "Password reset link sent to " + user.Email + " successfully"
+                        });
+            }
+
+            return StatusCode(StatusCodes.Status400BadRequest,
+                        new Response
+                        {
+                            Status = "Error",
+                            Message = "User with this email does not exist"
+                        });
+        }
+
+        [HttpGet("Reset-Password")]
+        public async Task<IActionResult> ResetPassword(string token, string email)
+        {
+            var model = new ResetPassword
+            {
+                Token = token,
+                Email = email
+            };
+
+            return Ok(new
+            {
+                model
+            });
+        }
+
+        [HttpPost("Reset-Password")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ResetPassword(ResetPassword resetPassword)
+        {
+            var user = await _userManager.FindByEmailAsync(resetPassword.Email);
+            if(user != null)
+            {
+                var resetPassResult = await _userManager.ResetPasswordAsync(user, resetPassword.Token, resetPassword.Password);
+                if (!resetPassResult.Succeeded)
+                {
+
+                    foreach (var error in resetPassResult.Errors)
+                    {
+                        ModelState.AddModelError(error.Code, error.Description);
+                    }
+
+                    return Ok(ModelState);
+                }
+
+                return StatusCode(StatusCodes.Status200OK,
+                        new Response
+                        {
+                            Status = "Success",
+                            Message = "Password reset successfully"
+                        });
+            }
+
+            return StatusCode(StatusCodes.Status400BadRequest,
+                        new Response
+                        {
+                            Status = "Error",
+                            Message = "User with this email does not exist"
+                        });
         }
 
         private JwtSecurityToken GetToken(List<Claim> authClaims)
