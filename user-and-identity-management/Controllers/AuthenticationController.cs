@@ -9,6 +9,7 @@ using System.Text;
 using User.Management.Service.Models;
 using User.Management.Service.Services;
 using user_and_identity_management.Models;
+using user_and_identity_management.Models.Authentication;
 using user_and_identity_management.Models.Authentication.Login;
 using user_and_identity_management.Models.Authentication.SignUp;
 
@@ -124,6 +125,114 @@ namespace user_and_identity_management.Controllers
                         });
         }
 
+        [Authorize]
+        [HttpPost("enable-2fa")]
+        public async Task<IActionResult> Enable2FA()
+        {
+            var user =
+                await _userManager.GetUserAsync(User);
+
+            if (user == null)
+            {
+                return Unauthorized();
+            }
+
+            await _userManager.SetTwoFactorEnabledAsync(
+                user,
+                true
+            );
+
+            return Ok(new Response
+            {
+                Status = "Success",
+                Message = "Two-factor authentication enabled"
+            });
+        }
+
+        [Authorize]
+        [HttpPost("disable-2fa")]
+        public async Task<IActionResult> Disable2FA()
+        {
+            var user = await _userManager.FindByNameAsync(User.Identity!.Name);
+
+            if (user == null)
+            {
+                return Unauthorized();
+            }
+
+            await _userManager.SetTwoFactorEnabledAsync(
+                user,
+                false
+            );
+
+            return Ok(new Response
+            {
+                Status = "Success",
+                Message = "Two-factor authentication disabled"
+            });
+        }
+
+        [HttpPost("verify-otp")]
+        public async Task<IActionResult> VerifyOtp([FromBody] VerifyOTP model)
+        {
+            var user =
+                await _userManager.FindByNameAsync(
+                    model.Username
+                );
+
+            if (user == null)
+            {
+                return Unauthorized();
+            }
+
+            var isValid =
+                await _userManager.VerifyTwoFactorTokenAsync(
+                    user,
+                    TokenOptions.DefaultEmailProvider,
+                    model.Code
+                );
+
+            if (!isValid)
+            {
+                return BadRequest(new Response
+                {
+                    Status = "Error",
+                    Message = "Invalid OTP"
+                });
+            }
+
+            var authClaims = new List<Claim>
+            {
+            new Claim(ClaimTypes.NameIdentifier, user.Id),
+            new Claim(ClaimTypes.Name, user.UserName),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
+
+            var userRoles =
+                await _userManager.GetRolesAsync(user);
+
+            foreach (var role in userRoles)
+            {
+                authClaims.Add(
+                    new Claim(
+                        ClaimTypes.Role,
+                        role
+                    )
+                );
+            }
+
+            var jwtToken = GetToken(authClaims);
+
+            return Ok(new
+            {
+                token =
+                    new JwtSecurityTokenHandler()
+                        .WriteToken(jwtToken),
+
+                expiration = jwtToken.ValidTo
+            });
+        }
+
         [HttpPost]
         [Route("Login")]
         public async Task<IActionResult> LogIn([FromBody] UserLogin userLogin)
@@ -134,8 +243,9 @@ namespace user_and_identity_management.Controllers
             {
                 var authClaims = new List<Claim>
                 {
-                    new Claim(ClaimTypes.Name, user.UserName),
-                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                 new Claim(ClaimTypes.NameIdentifier, user.Id),
+                 new Claim(ClaimTypes.Name, user.UserName),
+                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
                 };
 
                 var userRoles = await _userManager.GetRolesAsync(user);
@@ -144,7 +254,36 @@ namespace user_and_identity_management.Controllers
                     authClaims.Add(new Claim(ClaimTypes.Role, userRole));
                 }
 
+                if(user.TwoFactorEnabled)
+                {
+                    if (!await _userManager.IsEmailConfirmedAsync(user))
+                    {
+                        return Unauthorized(
+                            new Response
+                            {
+                                Status = "Error",
+                                Message = "Please confirm your email first."
+                            });
+                    }
+
+                    var otp = await _userManager.GenerateTwoFactorTokenAsync(user,TokenOptions.DefaultEmailProvider );
+                    var message = new Message(
+                        new[] { user.Email },
+                        "Login Verification Code",
+                        $"Your verification code is {otp}"
+                    );
+
+                    _emailService.SendEmail(message);
+
+                    return Ok(new Response
+                    {
+                        Status = "Success",
+                        Message = $"OTP sent to {user.Email}"
+                    });
+                }
+
                 var jwtToken = GetToken(authClaims);
+
 
                 return Ok(new
                 {
