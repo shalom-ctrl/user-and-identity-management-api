@@ -14,7 +14,7 @@ namespace User.Management.Service.Models.Authentication.SignUp
         [Required(ErrorMessage = "Password is required.")]
         public string? Password { get; set; }
 
-        [Required(ErrorMessage = "Role is required.")]
-        public string? Role { get; set; }
+        [Required(ErrorMessage = "Roles are required.")]
+        public List<string>? Roles { get; set; }
     }
 }

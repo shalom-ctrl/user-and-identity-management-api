@@ -40,9 +40,18 @@ namespace user_and_identity_management.Controllers
         [HttpPost]
         public async Task<IActionResult> RegisterUser([FromBody] RegisterUser registerUser)
         {
-            var token = await _userManagement.CreateUserWithTokenAsync(registerUser);
+            var serviceResult = await _userManagement.CreateUserWithTokenAsync(registerUser);
 
-            var confirmationLink = Url.Action(nameof(ConfirmEmail), "Authentication", new { token, email = registerUser.Email }, Request.Scheme);
+            if (!serviceResult.IsSuccess)
+            {
+                return StatusCode(serviceResult.StatusCode,
+                    new Response { Status = "Error", Message = serviceResult.Message });
+            }
+            var rawToken = serviceResult.Response.Token;
+            var encodedToken = Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlEncode(System.Text.Encoding.UTF8.GetBytes(rawToken));
+
+            await _userManagement.AssignRoleToUserAsync(registerUser.Roles, serviceResult.Response.User);
+            var confirmationLink = Url.Action(nameof(ConfirmEmail), "Authentication", new { token = encodedToken, email = registerUser.Email }, Request.Scheme);
             var linkText = $"Please confirm your email by <a href='{confirmationLink}'>clicking here</a>.";
             var message = new Message(new string[] { registerUser.Email }, "Email Confirmation", linkText);
             _emailService.SendEmail(message);
@@ -61,23 +70,35 @@ namespace user_and_identity_management.Controllers
             var user = await _userManager.FindByEmailAsync(email);
             if (user != null)
             {
-                var result = await _userManager.ConfirmEmailAsync(user, token);
-                if (result.Succeeded)
+                try
                 {
-                    return StatusCode(StatusCodes.Status200OK,
-                        new Response
-                        {
-                            Status = "Success",
-                            Message = "Email confirmed successfully!"
-                        });
+                    string safeToken = token.Replace(" ", "+");
+                    var decodedTokenBytes = Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlDecode(token);
+                    var normalToken = System.Text.Encoding.UTF8.GetString(decodedTokenBytes);
+
+                    var result = await _userManager.ConfirmEmailAsync(user, normalToken);
+                    if (result.Succeeded)
+                    {
+                        return StatusCode(StatusCodes.Status200OK,
+                            new Response { Status = "Success", Message = "Email confirmed successfully!" });
+                    }
+
+                    foreach (var error in result.Errors)
+                    {
+                        Console.WriteLine($"Identity Verification Error: {error.Description}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Token format processing exception: {ex.Message}");
                 }
             }
             return StatusCode(StatusCodes.Status500InternalServerError,
-                        new Response
-                        {
-                            Status = "Error",
-                            Message = "Email confirmation failed!"
-                        });
+             new Response
+            {
+                Status = "Error",
+                Message = "Email confirmation failed!"
+            });
         }
 
         [Authorize]

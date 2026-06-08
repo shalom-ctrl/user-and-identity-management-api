@@ -6,6 +6,7 @@ using System.Data;
 using User.Management.Service.Interface;
 using User.Management.Service.Models;
 using User.Management.Service.Models.Authentication.SignUp;
+using User.Management.Service.Models.Authentication.User;
 
 namespace User.Management.Service.Service
 {
@@ -21,13 +22,37 @@ namespace User.Management.Service.Service
             _roleManager = roleManager;
         }
 
-        public async Task<ApiResponse<string>> CreateUserWithTokenAsync(RegisterUser registerUser)
+        public async Task<ApiResponse<List<string>>> AssignRoleToUserAsync(List<string> roles, IdentityUser user)
+        {
+            var assignedRoles = new List<string>();
+            foreach (var role in roles)
+            {
+                if (await _roleManager.RoleExistsAsync(role))
+                {
+                    if(!await _userManager.IsInRoleAsync(user, role))
+                    {
+                        await _userManager.AddToRoleAsync(user, role);
+                        assignedRoles.Add(role);
+                    }
+                }
+            }
+
+            return new ApiResponse<List<string>>
+            {
+                IsSuccess = true,
+                Message = "Roles assigned successfully!",
+                StatusCode = StatusCodes.Status200OK,
+                Response = assignedRoles
+            };
+        }
+
+        public async Task<ApiResponse<CreateUserResponse>> CreateUserWithTokenAsync(RegisterUser registerUser)
         {
             var userExist = await _userManager.FindByNameAsync(registerUser.UserName);
 
             if (userExist != null)
             {
-                return new ApiResponse<string>
+                return new ApiResponse<CreateUserResponse>
                 {
                     IsSuccess = false,
                     Message = "User already exists!",
@@ -42,13 +67,10 @@ namespace User.Management.Service.Service
                 UserName = registerUser.UserName
             };
 
-            if (await _roleManager.RoleExistsAsync(registerUser.Role))
-            {
-
                 var result = await _userManager.CreateAsync(user, registerUser.Password);
                 if (!result.Succeeded)
                 {
-                    return new ApiResponse<string>
+                    return new ApiResponse<CreateUserResponse>
                     {
                         IsSuccess = false,
                         Message = "User creation failed! Please check user details and try again.",
@@ -56,26 +78,18 @@ namespace User.Management.Service.Service
                     };
                 }
 
-                await _userManager.AddToRoleAsync(user, registerUser.Role);
-
                 var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                return new ApiResponse<string>
+                return new ApiResponse<CreateUserResponse>
                 {
                     IsSuccess = true,
                     Message = "User created successfully!",
                     StatusCode = StatusCodes.Status201Created,
-                    Response = token
+                    Response = new CreateUserResponse
+                    {
+                        Token = token,
+                        User = user
+                    }
                 };
-            }
-            else
-            {
-                return new ApiResponse<string>
-                {
-                    IsSuccess = false,
-                    Message = "Role does not exist!",
-                    StatusCode = StatusCodes.Status400BadRequest
-                };
-            }
         }
     }
 }
