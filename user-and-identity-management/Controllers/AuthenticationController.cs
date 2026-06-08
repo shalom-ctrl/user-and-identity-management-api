@@ -20,17 +20,13 @@ namespace user_and_identity_management.Controllers
     [ApiController]
     public class AuthenticationController : ControllerBase
     {
-        private readonly UserManager<IdentityUser> _userManager;
-        private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IEmailService _emailService;
         private readonly IConfiguration _configuration;
         private readonly IUserManagement _userManagement;
 
-        public AuthenticationController(UserManager<IdentityUser> userManager, 
-            RoleManager<IdentityRole> roleManager, IEmailService emailService, IConfiguration configuration, IUserManagement userManagement)
+        public AuthenticationController(IEmailService emailService, IConfiguration configuration,
+            IUserManagement userManagement)
         {
-            _userManager = userManager;
-            _roleManager = roleManager;
             _emailService = emailService;
             _configuration = configuration;
             _userManagement = userManagement;
@@ -67,304 +63,114 @@ namespace user_and_identity_management.Controllers
         [HttpGet("confirm-email")]
         public async Task<IActionResult> ConfirmEmail(string token, string email)
         {
-            var user = await _userManager.FindByEmailAsync(email);
-            if (user != null)
+            var serviceResult = await _userManagement.ConfirmEmailAsync(token, email);
+            if (!serviceResult.IsSuccess)
             {
-                try
-                {
-                    string safeToken = token.Replace(" ", "+");
-                    var decodedTokenBytes = Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlDecode(token);
-                    var normalToken = System.Text.Encoding.UTF8.GetString(decodedTokenBytes);
-
-                    var result = await _userManager.ConfirmEmailAsync(user, normalToken);
-                    if (result.Succeeded)
-                    {
-                        return StatusCode(StatusCodes.Status200OK,
-                            new Response { Status = "Success", Message = "Email confirmed successfully!" });
-                    }
-
-                    foreach (var error in result.Errors)
-                    {
-                        Console.WriteLine($"Identity Verification Error: {error.Description}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Token format processing exception: {ex.Message}");
-                }
+                return StatusCode(serviceResult.StatusCode, new Response { Status = "Error", Message = serviceResult.Message });
             }
-            return StatusCode(StatusCodes.Status500InternalServerError,
-             new Response
-            {
-                Status = "Error",
-                Message = "Email confirmation failed!"
-            });
+
+            return StatusCode(serviceResult.StatusCode, new Response { Status = "Success", Message = serviceResult.Message });
         }
 
         [Authorize]
         [HttpPost("enable-2fa")]
         public async Task<IActionResult> Enable2FA()
         {
-            var user =
-                await _userManager.GetUserAsync(User);
-
-            if (user == null)
+            var serviceResult = await _userManagement.UpdateTwoFactorAsync(User.Identity!.Name, true);
+            if (!serviceResult.IsSuccess)
             {
-                return Unauthorized();
+                return StatusCode(serviceResult.StatusCode, new Response { Status = "Error", Message = serviceResult.Message });
             }
 
-            await _userManager.SetTwoFactorEnabledAsync(
-                user,
-                true
-            );
-
-            return Ok(new Response
-            {
-                Status = "Success",
-                Message = "Two-factor authentication enabled"
-            });
+            return Ok(new Response { Status = "Success", Message = serviceResult.Message });
         }
 
         [Authorize]
         [HttpPost("disable-2fa")]
         public async Task<IActionResult> Disable2FA()
         {
-            var user = await _userManager.FindByNameAsync(User.Identity!.Name);
-
-            if (user == null)
+            var serviceResult = await _userManagement.UpdateTwoFactorAsync(User.Identity!.Name, false);
+            if (!serviceResult.IsSuccess)
             {
-                return Unauthorized();
+                return StatusCode(serviceResult.StatusCode, new Response { Status = "Error", Message = serviceResult.Message });
             }
 
-            await _userManager.SetTwoFactorEnabledAsync(
-                user,
-                false
-            );
-
-            return Ok(new Response
-            {
-                Status = "Success",
-                Message = "Two-factor authentication disabled"
-            });
+            return Ok(new Response { Status = "Success", Message = serviceResult.Message });
         }
 
         [HttpPost("verify-otp")]
         public async Task<IActionResult> VerifyOtp([FromBody] VerifyOTP model)
         {
-            var user =
-                await _userManager.FindByNameAsync(
-                    model.Username
-                );
-
-            if (user == null)
+            var serviceResult = await _userManagement.VerifyOtpAsync(model);
+            if (!serviceResult.IsSuccess)
             {
-                return Unauthorized();
+                return StatusCode(serviceResult.StatusCode, new Response { Status = "Error", Message = serviceResult.Message });
             }
 
-            var isValid =
-                await _userManager.VerifyTwoFactorTokenAsync(
-                    user,
-                    TokenOptions.DefaultEmailProvider,
-                    model.Code
-                );
-
-            if (!isValid)
-            {
-                return BadRequest(new Response
-                {
-                    Status = "Error",
-                    Message = "Invalid OTP"
-                });
-            }
-
-            var authClaims = new List<Claim>
-            {
-            new Claim(ClaimTypes.NameIdentifier, user.Id),
-            new Claim(ClaimTypes.Name, user.UserName),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            };
-
-            var userRoles =
-                await _userManager.GetRolesAsync(user);
-
-            foreach (var role in userRoles)
-            {
-                authClaims.Add(
-                    new Claim(
-                        ClaimTypes.Role,
-                        role
-                    )
-                );
-            }
-
-            var jwtToken = GetToken(authClaims);
-
-            return Ok(new
-            {
-                token =
-                    new JwtSecurityTokenHandler()
-                        .WriteToken(jwtToken),
-
-                expiration = jwtToken.ValidTo
-            });
+            return Ok(new { token = serviceResult.Response });
         }
-
         [HttpPost]
         [Route("Login")]
         public async Task<IActionResult> LogIn([FromBody] UserLogin userLogin)
         {
-            var user = await _userManager.FindByNameAsync(userLogin.Username);
-
-            if(user != null && await _userManager.CheckPasswordAsync(user, userLogin.Password))
+            var serviceResult = await _userManagement.LogInUserAsync(userLogin);
+            if (!serviceResult.IsSuccess)
             {
-                var authClaims = new List<Claim>
-                {
-                 new Claim(ClaimTypes.NameIdentifier, user.Id),
-                 new Claim(ClaimTypes.Name, user.UserName),
-                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-                };
-
-                var userRoles = await _userManager.GetRolesAsync(user);
-                foreach (var userRole in userRoles)
-                {
-                    authClaims.Add(new Claim(ClaimTypes.Role, userRole));
-                }
-
-                if(user.TwoFactorEnabled)
-                {
-                    if (!await _userManager.IsEmailConfirmedAsync(user))
-                    {
-                        return Unauthorized(
-                            new Response
-                            {
-                                Status = "Error",
-                                Message = "Please confirm your email first."
-                            });
-                    }
-
-                    var otp = await _userManager.GenerateTwoFactorTokenAsync(user,TokenOptions.DefaultEmailProvider );
-                    var message = new Message(
-                        new[] { user.Email },
-                        "Login Verification Code",
-                        $"Your verification code is {otp}"
-                    );
-
-                    _emailService.SendEmail(message);
-
-                    return Ok(new Response
-                    {
-                        Status = "Success",
-                        Message = $"OTP sent to {user.Email}"
-                    });
-                }
-
-                var jwtToken = GetToken(authClaims);
-
-
-                return Ok(new
-                {
-                    token = new JwtSecurityTokenHandler().WriteToken(jwtToken),
-                    expiration = jwtToken.ValidTo
-                });
-
-
+                return StatusCode(serviceResult.StatusCode, new Response { Status = "Error", Message = serviceResult.Message });
             }
-            return Unauthorized();
+
+            if (serviceResult.Response != null)
+            {
+                return Ok(new { token = serviceResult.Response });
+            }
+
+            return Ok(new Response { Status = "Success", Message = serviceResult.Message });
         }
 
         [HttpPost("Forgot-Password")]
         [AllowAnonymous]
         public async Task<IActionResult> ForgotPassword([Required] string email)
         {
-            var user = await _userManager.FindByEmailAsync(email);
-            if(user != null)
+            var serviceResult = await _userManagement.ForgotPasswordAsync(email);
+            if (!serviceResult.IsSuccess)
             {
-                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-                var ForgotPasswordlink = Url.Action(nameof(ResetPassword), "Authentication", new { token, email = user.Email }, Request.Scheme);
-                var ResetPasswordlink = $"Please reset your password by <a href='{ForgotPasswordlink}'>clicking here</a>.";
-                var message = new Message(new string[] { user.Email }, "Reset Password Email", ResetPasswordlink);
-                _emailService.SendEmail(message);
-
-
-                return StatusCode(StatusCodes.Status200OK,
-                        new Response
-                        {
-                            Status = "Success",
-                            Message = "Password reset link sent to " + user.Email + " successfully"
-                        });
+                return StatusCode(serviceResult.StatusCode, new Response { Status = "Error", Message = serviceResult.Message });
             }
 
-            return StatusCode(StatusCodes.Status400BadRequest,
-                        new Response
-                        {
-                            Status = "Error",
-                            Message = "User with this email does not exist"
-                        });
+            var forgotPasswordLink = Url.Action(nameof(ResetPassword), "Authentication", new { token = serviceResult.Response, email }, Request.Scheme);
+            var resetPasswordLinkText = $"Please reset your password by <a href='{forgotPasswordLink}'>clicking here</a>.";
+            var message = new Message(new string[] { email }, "Reset Password Email", resetPasswordLinkText);
+            _emailService.SendEmail(message);
+
+            return StatusCode(StatusCodes.Status200OK, new Response { Status = "Success", Message = $"Password reset link sent to {email} successfully" });
         }
 
         [HttpGet("Reset-Password")]
         public async Task<IActionResult> ResetPassword(string token, string email)
         {
-            var model = new ResetPassword
-            {
-                Token = token,
-                Email = email
-            };
-
-            return Ok(new
-            {
-                model
-            });
+            var model = new ResetPassword { Token = token, Email = email };
+            return Ok(new { model });
         }
 
         [HttpPost("Reset-Password")]
         [AllowAnonymous]
         public async Task<IActionResult> ResetPassword(ResetPassword resetPassword)
         {
-            var user = await _userManager.FindByEmailAsync(resetPassword.Email);
-            if(user != null)
+            var serviceResult = await _userManagement.ResetPasswordAsync(resetPassword);
+            if (!serviceResult.IsSuccess)
             {
-                var resetPassResult = await _userManager.ResetPasswordAsync(user, resetPassword.Token, resetPassword.Password);
-                if (!resetPassResult.Succeeded)
+                if (serviceResult.Response != null)
                 {
-
-                    foreach (var error in resetPassResult.Errors)
+                    foreach (var error in serviceResult.Response.Errors)
                     {
                         ModelState.AddModelError(error.Code, error.Description);
                     }
-
                     return Ok(ModelState);
                 }
-
-                return StatusCode(StatusCodes.Status200OK,
-                        new Response
-                        {
-                            Status = "Success",
-                            Message = "Password reset successfully"
-                        });
+                return StatusCode(serviceResult.StatusCode, new Response { Status = "Error", Message = serviceResult.Message });
             }
 
-            return StatusCode(StatusCodes.Status400BadRequest,
-                        new Response
-                        {
-                            Status = "Error",
-                            Message = "User with this email does not exist"
-                        });
-        }
-
-        private JwtSecurityToken GetToken(List<Claim> authClaims)
-        {
-            var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:SecretKey"]));
-
-            var token = new JwtSecurityToken(
-                issuer: _configuration["JWT:ValidIssuer"],
-                audience: _configuration["JWT:ValidAudience"],
-                expires: DateTime.Now.AddHours(1),
-                claims: authClaims,
-                signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
-                );
-
-            return token;
+            return StatusCode(StatusCodes.Status200OK, new Response { Status = "Success", Message = "Password reset successfully" });
         }
 
     }
