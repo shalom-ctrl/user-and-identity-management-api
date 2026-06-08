@@ -2,13 +2,13 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using User.Management.Service.Models;
-using user_and_identity_management.Data;
-using User.Management.Service.Service; // Namespace for EmailService
+using User.Management.Service.Service; 
 using User.Management.Service.Services;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.OpenApi.Models;
-using User.Management.Service.Interface; // Namespace for IEmailService
+using User.Management.Service.Interface;
+using User.Management.Data.Data; 
 
 var builder = WebApplication.CreateBuilder(args);
 

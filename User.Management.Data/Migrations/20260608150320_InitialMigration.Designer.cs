@@ -5,14 +5,14 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using user_and_identity_management.Data;
+using User.Management.Data.Data;
 
 #nullable disable
 
-namespace user_and_identity_management.Migrations
+namespace User.Management.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260601134138_InitialMigration")]
+    [Migration("20260608150320_InitialMigration")]
     partial class InitialMigration
     {
         /// <inheritdoc />
@@ -50,6 +50,29 @@ namespace user_and_identity_management.Migrations
                         .HasFilter("[NormalizedName] IS NOT NULL");
 
                     b.ToTable("AspNetRoles", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = "5d85a12a-a191-4dff-b12b-5c04b155ff3d",
+                            ConcurrencyStamp = "1",
+                            Name = "Admin",
+                            NormalizedName = "Admin"
+                        },
+                        new
+                        {
+                            Id = "35f7f6af-4c07-46a2-a761-449e334263d7",
+                            ConcurrencyStamp = "2",
+                            Name = "User",
+                            NormalizedName = "User"
+                        },
+                        new
+                        {
+                            Id = "d810f899-2ad3-4efc-be3c-ddafd9b4ac4d",
+                            ConcurrencyStamp = "3",
+                            Name = "HR",
+                            NormalizedName = "HR"
+                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

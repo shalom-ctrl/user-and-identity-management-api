@@ -3,20 +3,17 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using user_and_identity_management.Data;
+using User.Management.Data.Data;
 
 #nullable disable
 
-namespace user_and_identity_management.Migrations
+namespace User.Management.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260601135219_SeedRoles")]
-    partial class SeedRoles
+    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -54,21 +51,21 @@ namespace user_and_identity_management.Migrations
                     b.HasData(
                         new
                         {
-                            Id = "8bfc9bec-0e83-4d99-a05e-a5f1aa5ae8d3",
+                            Id = "5d85a12a-a191-4dff-b12b-5c04b155ff3d",
                             ConcurrencyStamp = "1",
                             Name = "Admin",
                             NormalizedName = "Admin"
                         },
                         new
                         {
-                            Id = "40d74dfe-cdf2-4a28-b57f-c01f7dc49210",
+                            Id = "35f7f6af-4c07-46a2-a761-449e334263d7",
                             ConcurrencyStamp = "2",
                             Name = "User",
                             NormalizedName = "User"
                         },
                         new
                         {
-                            Id = "eb0112e1-317b-4cd2-b2c7-24b2c2112b67",
+                            Id = "d810f899-2ad3-4efc-be3c-ddafd9b4ac4d",
                             ConcurrencyStamp = "3",
                             Name = "HR",
                             NormalizedName = "HR"

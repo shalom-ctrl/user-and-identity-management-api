@@ -3,7 +3,9 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace user_and_identity_management.Migrations
+#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
+
+namespace User.Management.Data.Migrations
 {
     /// <inheritdoc />
     public partial class InitialMigration : Migration
@@ -11,7 +13,7 @@ namespace user_and_identity_management.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateTable(
+           /* migrationBuilder.CreateTable(
                 name: "AspNetRoles",
                 columns: table => new
                 {
@@ -156,6 +158,16 @@ namespace user_and_identity_management.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.InsertData(
+                table: "AspNetRoles",
+                columns: new[] { "Id", "ConcurrencyStamp", "Name", "NormalizedName" },
+                values: new object[,]
+                {
+                    { "35f7f6af-4c07-46a2-a761-449e334263d7", "2", "User", "User" },
+                    { "5d85a12a-a191-4dff-b12b-5c04b155ff3d", "1", "Admin", "Admin" },
+                    { "d810f899-2ad3-4efc-be3c-ddafd9b4ac4d", "3", "HR", "HR" }
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
                 table: "AspNetRoleClaims",
@@ -193,7 +205,7 @@ namespace user_and_identity_management.Migrations
                 table: "AspNetUsers",
                 column: "NormalizedUserName",
                 unique: true,
-                filter: "[NormalizedUserName] IS NOT NULL");
+                filter: "[NormalizedUserName] IS NOT NULL");   */
         }
 
         /// <inheritdoc />
