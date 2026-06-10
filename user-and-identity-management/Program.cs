@@ -8,7 +8,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.OpenApi.Models;
 using User.Management.Service.Interface;
-using User.Management.Data.Data; 
+using User.Management.Data.Data;
+using User.Management.Data.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -55,7 +56,7 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddIdentity<IdentityUser, IdentityRole>()
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 

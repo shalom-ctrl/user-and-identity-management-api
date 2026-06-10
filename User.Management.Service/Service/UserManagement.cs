@@ -7,6 +7,7 @@ using System.Data;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using User.Management.Data.Models;
 using User.Management.Service.Interface;
 using User.Management.Service.Models;
 using User.Management.Service.Models.Authentication.Login;
@@ -18,12 +19,12 @@ namespace User.Management.Service.Service
 {
     public class UserManagement : IUserManagement
     {
-        private readonly UserManager<IdentityUser> _userManager;
+        private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IEmailService _emailService;
         private readonly IConfiguration _configuration;
 
-        public UserManagement(UserManager<IdentityUser> userManager,
+        public UserManagement(UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole> roleManager, IEmailService emailService, IConfiguration configuration)
         {
             _userManager = userManager;
@@ -32,7 +33,7 @@ namespace User.Management.Service.Service
             _configuration = configuration;
         }
 
-        public async Task<ApiResponse<List<string>>> AssignRoleToUserAsync(List<string> roles, IdentityUser user)
+        public async Task<ApiResponse<List<string>>> AssignRoleToUserAsync(List<string> roles, ApplicationUser user)
         {
             var assignedRoles = new List<string>();
             foreach (var role in roles)
@@ -70,7 +71,7 @@ namespace User.Management.Service.Service
                 };
             }
 
-            IdentityUser user = new()
+            ApplicationUser user = new()
             {
                 Email = registerUser.Email,
                 SecurityStamp = Guid.NewGuid().ToString(),
@@ -102,7 +103,7 @@ namespace User.Management.Service.Service
                 };
         }
 
-        public async Task<string> GenerateTokenStringAsync(IdentityUser user)
+        public async Task<string> GenerateTokenStringAsync(ApplicationUser user)
         {
             var authClaims = new List<Claim>
             {
