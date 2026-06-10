@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Data;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using User.Management.Data.Models;
 using User.Management.Service.Interface;
@@ -223,6 +224,13 @@ namespace User.Management.Service.Service
             }
 
             var tokenString = await GenerateTokenStringAsync(user);
+            var refreshToken = GenerateRefreshToken();
+
+            user.RefreshToken = refreshToken;
+
+            user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(int.Parse(_configuration["JWT:RefreshTokenValidityInDays"]  ));
+
+            await _userManager.UpdateAsync(user);
             return new ApiResponse<string>
             {
                 IsSuccess = true,
@@ -273,20 +281,35 @@ namespace User.Management.Service.Service
             return new ApiResponse<IdentityResult> { IsSuccess = result.Succeeded, Response = result, StatusCode = result.Succeeded ? StatusCodes.Status200OK : StatusCodes.Status400BadRequest };
         }
 
+
+        #region Private Helper Methods
         private JwtSecurityToken GetToken(List<Claim> authClaims)
         {
             var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:SecretKey"]));
             var tokenValidityInMinutes = int.TryParse(_configuration["JWT:TokenValidityInMinutes"], out int tokenValidity) ? tokenValidity : 30;
+            var expirationtimeUtc = DateTime.UtcNow.AddMinutes(tokenValidityInMinutes);
+            var localTimezone = TimeZoneInfo.Local;
+            var expirationTimeLocal = TimeZoneInfo.ConvertTimeFromUtc(expirationtimeUtc, localTimezone);
 
             var token = new JwtSecurityToken(
                 issuer: _configuration["JWT:ValidIssuer"],
                 audience: _configuration["JWT:ValidAudience"],
-                expires: DateTime.UtcNow.AddMinutes(tokenValidityInMinutes),
+                expires: expirationTimeLocal,
                 claims: authClaims,
                 signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
                 );
 
             return token;
         }
+
+        private string GenerateRefreshToken()
+        {
+            var randomNumber = new byte[64];
+            var range = RandomNumberGenerator.Create();
+            range.GetBytes(randomNumber);
+            return Convert.ToBase64String(randomNumber);
+        }
+
+        #endregion
     }
 }
