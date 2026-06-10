@@ -209,34 +209,55 @@ namespace User.Management.Service.Service
             return new ApiResponse<string> { IsSuccess = true, Message = "Email confirmed successfully!", StatusCode = StatusCodes.Status200OK };
         }
 
-        public async Task<ApiResponse<string>> VerifyOtpAsync(VerifyOTP model)
+        public async Task<ApiResponse<LoginResponse>> VerifyOtpAsync(VerifyOTP model)
         {
             var user = await _userManager.FindByNameAsync(model.Username);
             if (user == null)
             {
-                return new ApiResponse<string> { IsSuccess = false, Message = "Unauthorized access.", StatusCode = StatusCodes.Status401Unauthorized };
+                return new ApiResponse<LoginResponse> { IsSuccess = false, Message = "Unauthorized access.", StatusCode = StatusCodes.Status401Unauthorized };
             }
 
             var isValid = await _userManager.VerifyTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider, model.Code);
             if (!isValid)
             {
-                return new ApiResponse<string> { IsSuccess = false, Message = "Invalid OTP", StatusCode = StatusCodes.Status400BadRequest };
+                return new ApiResponse<LoginResponse> { IsSuccess = false, Message = "Invalid OTP", StatusCode = StatusCodes.Status400BadRequest };
             }
 
             var tokenString = await GenerateTokenStringAsync(user);
+            var handler = new JwtSecurityTokenHandler();
+            var jwtToken = handler.ReadJwtToken(tokenString);
+            var accessToken = new TokenType
+            {
+                Token = tokenString,
+                ExpiryTokenDate = jwtToken.ValidTo
+            };
+
             var refreshToken = GenerateRefreshToken();
 
             user.RefreshToken = refreshToken;
 
-            user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(int.Parse(_configuration["JWT:RefreshTokenValidityInDays"]  ));
+            user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(int.Parse(_configuration["JWT:RefreshTokenValidityInDays"]));
+
+            var refreshTokenObject = new TokenType
+            {
+                Token = refreshToken,
+                ExpiryTokenDate = user.RefreshTokenExpiry
+            };
 
             await _userManager.UpdateAsync(user);
-            return new ApiResponse<string>
+
+            var loginResponse = new LoginResponse
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshTokenObject
+            };
+
+            return new ApiResponse<LoginResponse>
             {
                 IsSuccess = true,
                 Message = "OTP Verified successfully!",
                 StatusCode = StatusCodes.Status200OK,
-                Response = tokenString
+                Response = loginResponse
             };
         }
 

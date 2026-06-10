@@ -106,13 +106,11 @@ namespace user_and_identity_management.Controllers
             {
                 return StatusCode(serviceResult.StatusCode, new Response { Status = "Error", Message = serviceResult.Message });
             }
-            var tokenString = serviceResult.Response;
-            var handler = new JwtSecurityTokenHandler();
-            var jwtToken = handler.ReadJwtToken(tokenString);
+
             return Ok(new
             {
-                token = tokenString,
-                expiration = jwtToken.ValidTo
+                accessToken = serviceResult.Response.AccessToken,
+                refreshToken = serviceResult.Response.RefreshToken
             });
         }
         [HttpPost]

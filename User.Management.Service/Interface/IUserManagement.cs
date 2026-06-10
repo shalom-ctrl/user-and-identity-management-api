@@ -18,7 +18,7 @@ namespace User.Management.Service.Interface
         Task<string> GenerateTokenStringAsync(ApplicationUser user);
 
         Task<ApiResponse<string>> ConfirmEmailAsync(string token, string email);
-        Task<ApiResponse<string>> VerifyOtpAsync(VerifyOTP model);
+        Task<ApiResponse<LoginResponse>> VerifyOtpAsync(VerifyOTP model);
         Task<ApiResponse<string>> UpdateTwoFactorAsync(string username, bool enabled);
         Task<ApiResponse<string>> ForgotPasswordAsync(string email);
         Task<ApiResponse<IdentityResult>> ResetPasswordAsync(ResetPassword resetPassword);
