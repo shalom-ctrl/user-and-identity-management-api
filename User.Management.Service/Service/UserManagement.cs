@@ -276,11 +276,12 @@ namespace User.Management.Service.Service
         private JwtSecurityToken GetToken(List<Claim> authClaims)
         {
             var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:SecretKey"]));
+            var tokenValidityInMinutes = int.TryParse(_configuration["JWT:TokenValidityInMinutes"], out int tokenValidity) ? tokenValidity : 30;
 
             var token = new JwtSecurityToken(
                 issuer: _configuration["JWT:ValidIssuer"],
                 audience: _configuration["JWT:ValidAudience"],
-                expires: DateTime.Now.AddHours(1),
+                expires: DateTime.UtcNow.AddMinutes(tokenValidityInMinutes),
                 claims: authClaims,
                 signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
                 );
