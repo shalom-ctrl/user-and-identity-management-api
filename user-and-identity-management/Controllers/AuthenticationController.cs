@@ -106,8 +106,14 @@ namespace user_and_identity_management.Controllers
             {
                 return StatusCode(serviceResult.StatusCode, new Response { Status = "Error", Message = serviceResult.Message });
             }
-
-            return Ok(new { token = serviceResult.Response });
+            var tokenString = serviceResult.Response;
+            var handler = new JwtSecurityTokenHandler();
+            var jwtToken = handler.ReadJwtToken(tokenString);
+            return Ok(new
+            {
+                token = tokenString,
+                expiration = jwtToken.ValidTo
+            });
         }
         [HttpPost]
         [Route("Login")]
