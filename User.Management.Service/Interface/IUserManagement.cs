@@ -22,5 +22,7 @@ namespace User.Management.Service.Interface
         Task<ApiResponse<string>> UpdateTwoFactorAsync(string username, bool enabled);
         Task<ApiResponse<string>> ForgotPasswordAsync(string email);
         Task<ApiResponse<IdentityResult>> ResetPasswordAsync(ResetPassword resetPassword);
+
+        Task<ApiResponse<LoginResponse>> RefreshTokenAsync(RefreshTokenRequest request);
     }
 }

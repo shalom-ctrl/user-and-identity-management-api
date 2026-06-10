@@ -11,6 +11,7 @@ using User.Management.Service.Interface;
 using User.Management.Service.Models;
 using User.Management.Service.Models.Authentication.Login;
 using User.Management.Service.Models.Authentication.SignUp;
+using User.Management.Service.Models.Authentication.User;
 using User.Management.Service.Services;
 using user_and_identity_management.Models;
 
@@ -129,6 +130,20 @@ namespace user_and_identity_management.Controllers
             }
 
             return Ok(new Response { Status = "Success", Message = serviceResult.Message });
+        }
+
+        [HttpPost]
+        [Route("Refresh-Token")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+        {
+            var result = await _userManagement.RefreshTokenAsync(request);
+
+            if (!result.IsSuccess)
+            {
+                return StatusCode(result.StatusCode, result);
+            }
+
+            return Ok(result.Response);
         }
 
         [HttpPost("Forgot-Password")]

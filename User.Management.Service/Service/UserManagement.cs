@@ -302,6 +302,79 @@ namespace User.Management.Service.Service
             return new ApiResponse<IdentityResult> { IsSuccess = result.Succeeded, Response = result, StatusCode = result.Succeeded ? StatusCodes.Status200OK : StatusCodes.Status400BadRequest };
         }
 
+        public async Task<ApiResponse<LoginResponse>> RefreshTokenAsync(RefreshTokenRequest request)
+        {
+            var accessToken = request.AccessToken;
+
+            var principal = GetClaimsPrincipal(accessToken);
+            var user =await _userManager.FindByNameAsync(principal.Identity.Name);
+            if (user == null)
+            {
+                return new ApiResponse<LoginResponse>
+                {
+                    IsSuccess = false,
+                    Message = "User not found",
+                    StatusCode = StatusCodes.Status401Unauthorized
+                };
+            }
+
+            if (user.RefreshToken != request.RefreshToken)
+            {
+                return new ApiResponse<LoginResponse>
+                {
+                    IsSuccess = false,
+                    Message = "Invalid refresh token",
+                    StatusCode = StatusCodes.Status401Unauthorized
+                };
+            }
+
+            if (user.RefreshTokenExpiry <= DateTime.UtcNow)
+            {
+                return new ApiResponse<LoginResponse>
+                {
+                    IsSuccess = false,
+                    Message = "Refresh token expired",
+                    StatusCode = StatusCodes.Status401Unauthorized
+                };
+            }
+
+            var accessTokenString =await GenerateTokenStringAsync(user);
+
+            var handler = new JwtSecurityTokenHandler();
+
+            var jwtToken =handler.ReadJwtToken(accessTokenString);
+
+            var newRefreshToken =GenerateRefreshToken();
+            user.RefreshToken = newRefreshToken;
+
+            user.RefreshTokenExpiry =DateTime.UtcNow.AddDays(int.Parse(_configuration["JWT:RefreshTokenValidityInDays"]));
+
+            await _userManager.UpdateAsync(user);
+
+            var newloginResponse = new LoginResponse
+            {
+                AccessToken = new TokenType
+                {
+                    Token = accessTokenString,
+                    ExpiryTokenDate = jwtToken.ValidTo
+                },
+
+                RefreshToken = new TokenType
+                {
+                    Token = newRefreshToken,
+                    ExpiryTokenDate = user.RefreshTokenExpiry
+                }
+            };
+
+            return new ApiResponse<LoginResponse>
+            {
+                IsSuccess = true,
+                Message = "Token refreshed successfully",
+                StatusCode = StatusCodes.Status200OK,
+                Response = newloginResponse
+            };
+        }
+
 
         #region Private Helper Methods
         private JwtSecurityToken GetToken(List<Claim> authClaims)
@@ -329,6 +402,23 @@ namespace User.Management.Service.Service
             var range = RandomNumberGenerator.Create();
             range.GetBytes(randomNumber);
             return Convert.ToBase64String(randomNumber);
+        }
+
+        private ClaimsPrincipal GetClaimsPrincipal(string accesstoken)
+        {
+            var tokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateAudience = false,
+                ValidateIssuer = false,
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:SecretKey"])),
+                ValidateLifetime = false
+            };
+
+            var tokenhandler = new JwtSecurityTokenHandler();
+            var principal = tokenhandler.ValidateToken(accesstoken, tokenValidationParameters, out SecurityToken securityToken);
+
+            return principal;
         }
 
         #endregion
